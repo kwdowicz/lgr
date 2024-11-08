@@ -6,14 +6,10 @@ import (
 	"reflect"
 )
 
-func Check() {
-	fmt.Println("Checking...")
-}
-
 func LogMethods(target interface{}) {
 	v := reflect.ValueOf(target).Elem()
 	t := v.Type()
-	fmt.Println("In LogMethods")
+	log.Println("(log)In LogMethods")
 
 	for i := 0; i < v.NumMethod(); i++ {
 		method := v.Method(i)
