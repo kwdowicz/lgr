@@ -14,6 +14,8 @@ func LogMethods(target interface{}) {
 	for i := 0; i < v.NumMethod(); i++ {
 		method := v.Method(i)
 		methodType := t.Method(i)
+		log.Printf("method: %v", method)
+		log.Printf("method type: %v", method)
 		wrappedMethod := func(in []reflect.Value) []reflect.Value {
 			log.Printf("Entering method %s", methodType.Name)
 			fmt.Printf("(fmt)Entering method %s", methodType.Name)
