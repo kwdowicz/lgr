@@ -1,27 +1,57 @@
 package lgr
 
 import (
-	"fmt"
+	"go/ast"
+	"go/format"
+	"go/parser"
+	"go/token"
 	"log"
-	"reflect"
+	"os"
 )
 
-func LogMethods(target interface{}) {
-	v := reflect.ValueOf(target).Elem()
-	t := v.Type()
-	log.Printf("In LogMethods: %v\n", v)
-
-	for i := 0; i < v.NumMethod(); i++ {
-		method := v.Method(i)
-		methodType := t.Method(i)
-		log.Printf("method: %v\n", method)
-		log.Printf("method type: %v\n", method)
-		wrappedMethod := func(in []reflect.Value) []reflect.Value {
-			log.Printf("Entering method %s", methodType.Name)
-			fmt.Printf("(fmt)Entering method %s", methodType.Name)
-			result := method.Call(in)
-			return result
-		}
-		method.Set(reflect.MakeFunc(method.Type(), wrappedMethod))
+func GenerateLogging(filename string) {
+	fset := token.NewFileSet()
+	node, err := parser.ParseFile(fset, filename, nil, parser.ParseComments)
+	if err != nil {
+		log.Fatal(err)
 	}
+
+	for _, decl := range node.Decls {
+		fn, ok := decl.(*ast.FuncDecl)
+		if !ok {
+			continue
+		}
+
+		// Skip functions without a receiver (not methods)
+		if fn.Recv == nil {
+			continue
+		}
+
+		fnName := fn.Name.Name
+
+		// Generate the logging statements
+		fn.Body.List = append([]ast.Stmt{
+			&ast.ExprStmt{X: &ast.CallExpr{
+				Fun:  &ast.SelectorExpr{X: ast.NewIdent("log"), Sel: ast.NewIdent("Println")},
+				Args: []ast.Expr{&ast.BasicLit{Kind: token.STRING, Value: `"Entering method ` + fnName + `"`}},
+			}},
+			&ast.DeferStmt{Call: &ast.CallExpr{
+				Fun:  &ast.SelectorExpr{X: ast.NewIdent("log"), Sel: ast.NewIdent("Println")},
+				Args: []ast.Expr{&ast.BasicLit{Kind: token.STRING, Value: `"Exiting method ` + fnName + `"`}},
+			}},
+		}, fn.Body.List...)
+	}
+
+	// Format the modified AST
+	outputFile, err := os.Create("main.go") // Create the output file
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer outputFile.Close()
+	err = format.Node(outputFile, fset, node) // Write to the output file
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// No need to use ioutil.WriteFile now
 }
